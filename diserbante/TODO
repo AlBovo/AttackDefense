@@ -1,0 +1,18 @@
+- Migliorare lo scanner, per ora non considera altro che la porta default, inoltre il fingerprinting
+di tulip è abbastanza debole al momento, si basa solo sul messaggio che dà alla root dell'api
+
+- Investigare auth di tulip : come l'abbbiamo implementato noi è sicura? Come potrebbe non essere implementata in modo sicuro?
+
+- Cosa ci facciamo con l'abilità di submittare flag sul destr farm di altri? é una strategia lecita?
+
+- Autenticazione di destr farm, ache lì ci sono molte farme nella web interface (Dubito si possa bypassare but you never know)
+
+- Mettere in sicurezza il nostro destr farm mettendo auth sull'api, che c'è ma è spenta di default
+
+- Si potrebbero filtrare meglio i dati stampati dati a destr farm, ma è una minuzia
+
+- Tulip aperto vuol dire una visione completa sul network della vulnbox attraverso l'api
+    - Cosa altro ci possiamo fare?
+
+- Non esiste solo tulip:
+    Possiamo fare qualcosa di equivalente per Caronte o tool simili

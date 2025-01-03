@@ -1,0 +1,80 @@
+#!/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
+
+import sys, argparse, subprocess, getpass, os
+
+_argcomplete_installed = False
+try:
+    import argcomplete
+
+    _argcomplete_installed = True
+except ImportError:
+    pass
+
+parser = argparse.ArgumentParser(
+    description="Capture network traffic on a remote host using tcpdump and write it to stdout",
+    epilog="Example: sshdump user@host | wireshark -k -i -",
+)
+
+parser.add_argument("sshcmd", help="SSH host to connect to + optional SSH options (e.g. user@host -p 2222)")
+parser.add_argument("-i", "--interface", help="Interface to capture on")
+parser.add_argument("--snaplen", default=65535, type=int, help="Snaplen to use for tcpdump (default: 65535)")
+parser.add_argument("--unbuffered", type=bool, default=True, help="Enable tcpdump unbuffered output")
+parser.add_argument("--command", default="tcpdump", help="Command to run on remote host (default: tcpdump)")
+parser.add_argument("--immediate-mode", type=bool, default=True, help="Enable immediate mode (default: true)")
+parser.add_argument("--stdout", action="store_true", help="Write binary data to stdout")
+parser.add_argument("--sudo", action="store_true", help="Prompt for password")
+
+if _argcomplete_installed:
+    argcomplete.autocomplete(parser)
+
+args = parser.parse_args()
+
+sshcmd = args.sshcmd
+dumpcmd = args.command
+
+# check if ssh command is available
+try:
+    subprocess.check_output("command -v ssh", shell=True)
+except subprocess.CalledProcessError:
+    print(f"sshdump: ssh not found, make sure ssh is installed", file=sys.stderr)
+    sys.exit(1)
+
+# check if we should redirect the output
+if sys.stdout.isatty() and not args.stdout:
+    print(
+        "sshdump: refusing to write binary data to terminal, use --stdout to write to stdout or redirect the output",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+# test if the command is available
+try:
+    subprocess.check_output(["ssh", sshcmd, f"command -v '{dumpcmd}'"])
+except subprocess.CalledProcessError:
+    print(f"sshdump: command '{dumpcmd}' not found on remote host", file=sys.stderr)
+    print(f"sshdump: make sure '{dumpcmd}' is installed on the remote host", file=sys.stderr)
+
+    sys.exit(1)
+
+# create the command
+if args.immediate_mode:
+    dumpcmd += " --immediate-mode"
+if args.unbuffered:
+    dumpcmd += " -U"
+
+if args.interface:
+    dumpcmd += f" -i {args.interface}"
+
+dumpcmd += f" -s {args.snaplen}"
+dumpcmd += " -n"  # disable name resolution
+dumpcmd += " -w -"  # write to stdout
+dumpcmd += f" not port 22"  # exclude ssh traffic
+
+if args.sudo:
+    password = getpass.getpass("sshdump: Enter sudo password: ")
+    dumpcmd = f"echo {password} | sudo -S {dumpcmd}"
+
+# run the command
+# as we don't need to do anything else, we can just exec the process
+os.execv("/usr/bin/ssh", ["ssh", sshcmd, dumpcmd])
